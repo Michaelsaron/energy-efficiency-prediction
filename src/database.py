@@ -17,6 +17,7 @@ This module contains database operations only.
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime
 from typing import Any
 
@@ -39,55 +40,91 @@ except ImportError as exc:
 # ---------------------------------------------------------------------
 def get_database_config() -> dict[str, Any]:
     """
-    Read MySQL credentials from Streamlit secrets.
+    Read MySQL credentials from Railway environment variables first.
 
-    Required file:
+    Local development falls back to:
         .streamlit/secrets.toml
 
-    Required section:
-        [mysql]
+    Railway variables:
+        MYSQLHOST
+        MYSQLPORT
+        MYSQLDATABASE
+        MYSQLUSER
+        MYSQLPASSWORD
     """
-    try:
-        mysql_secrets = st.secrets["mysql"]
-    except Exception as exc:
-        raise RuntimeError(
-            "MySQL configuration was not found.\n\n"
-            "Create this file:\n"
-            ".streamlit/secrets.toml\n\n"
-            "Then add:\n\n"
-            "[mysql]\n"
-            'host = "localhost"\n'
-            "port = 3306\n"
-            'database = "energy_efficiency"\n'
-            'user = "root"\n'
-            'password = "your_mysql_password"'
-        ) from exc
+    railway_host = os.getenv("MYSQLHOST", "").strip()
 
-    required_keys = {
-        "host",
-        "database",
-        "user",
-        "password",
-    }
+    if railway_host:
+        config = {
+            "host": railway_host,
+            "port": int(os.getenv("MYSQLPORT", "3306")),
+            "database": os.getenv("MYSQLDATABASE", "").strip(),
+            "user": os.getenv("MYSQLUSER", "").strip(),
+            "password": os.getenv("MYSQLPASSWORD", ""),
+        }
 
-    missing_keys = [
-        key
-        for key in required_keys
-        if key not in mysql_secrets or str(mysql_secrets[key]).strip() == ""
-    ]
+        missing_keys = [
+            key
+            for key in ("host", "database", "user", "password")
+            if str(config[key]).strip() == ""
+        ]
 
-    if missing_keys:
-        raise RuntimeError(
-            "Missing MySQL setting(s) in "
-            ".streamlit/secrets.toml: " + ", ".join(sorted(missing_keys))
-        )
+        if missing_keys:
+            raise RuntimeError(
+                "Missing Railway MySQL environment variable(s): "
+                + ", ".join(sorted(missing_keys))
+            )
+
+    else:
+        try:
+            mysql_secrets = st.secrets["mysql"]
+        except Exception as exc:
+            raise RuntimeError(
+                "MySQL configuration was not found.\n\n"
+                "For Railway, configure these environment variables:\n"
+                "MYSQLHOST, MYSQLPORT, MYSQLDATABASE, MYSQLUSER, MYSQLPASSWORD\n\n"
+                "For local development, create:\n"
+                ".streamlit/secrets.toml\n\n"
+                "Then add:\n\n"
+                "[mysql]\n"
+                'host = "localhost"\n'
+                "port = 3306\n"
+                'database = "energy_efficiency"\n'
+                'user = "root"\n'
+                'password = "your_mysql_password"'
+            ) from exc
+
+        required_keys = {
+            "host",
+            "database",
+            "user",
+            "password",
+        }
+
+        missing_keys = [
+            key
+            for key in required_keys
+            if key not in mysql_secrets
+            or str(mysql_secrets[key]).strip() == ""
+        ]
+
+        if missing_keys:
+            raise RuntimeError(
+                "Missing MySQL setting(s) in "
+                ".streamlit/secrets.toml: "
+                + ", ".join(sorted(missing_keys))
+            )
+
+        config = {
+            "host": str(mysql_secrets["host"]),
+            "port": int(mysql_secrets.get("port", 3306)),
+            "database": str(mysql_secrets["database"]),
+            "user": str(mysql_secrets["user"]),
+            "password": str(mysql_secrets["password"]),
+        }
 
     return {
-        "host": str(mysql_secrets["host"]),
-        "port": int(mysql_secrets.get("port", 3306)),
-        "database": str(mysql_secrets["database"]),
-        "user": str(mysql_secrets["user"]),
-        "password": str(mysql_secrets["password"]),
+        **config,
         "charset": "utf8mb4",
         "use_unicode": True,
         "autocommit": False,
@@ -112,10 +149,10 @@ def get_connection() -> MySQLConnection:
         raise RuntimeError(
             "Could not connect to MySQL.\n\n"
             "Check that:\n"
-            "1. MySQL Server is running.\n"
-            "2. The database already exists.\n"
+            "1. The MySQL service is running.\n"
+            "2. The database exists.\n"
             "3. The username and password are correct.\n"
-            "4. The values in .streamlit/secrets.toml are correct.\n\n"
+            "4. Railway environment variables or local Streamlit secrets are correct.\n\n"
             f"MySQL error: {exc}"
         ) from exc
 
