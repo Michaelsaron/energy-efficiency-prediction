@@ -1,0 +1,26 @@
+{
+  "best_model": "CatBoost",
+  "estimator_class": "CatBoostSklearnAdapter",
+  "selection_rule": "Balanced deployment score: 40% Test R2, 15% RMSE, 10% MAE, 20% CV R2 mean, 7.5% CV variability, and 7.5% train-test gap.",
+  "best_r2": 0.9988009547635476,
+  "best_rmse": 0.35352276195785715,
+  "best_mae": 0.25706123678850257,
+  "train_r2": 0.999689933888293,
+  "train_test_r2_gap": 0.0008889791247453926,
+  "cv_r2_mean": 0.9985884731481185,
+  "cv_r2_std": 0.00030811199455376613,
+  "training_time_seconds": 0.18561424998915754,
+  "deployment_score": 99.09091247367283,
+  "generalisation_status": "Strong",
+  "stability_status": "Very stable",
+  "model_complexity": "High",
+  "unseen_test_metrics_source": "outputs/metrics/unseen_test_predictions.csv",
+  "selection_justification": "CatBoost ranked first using the balanced deployment score (99.09/100). It combines held-out accuracy, prediction error, cross-validation performance, cross-validation stability and the train-test gap.",
+  "environment": {
+    "python": "3.12.5",
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "scikit_learn": "1.6.1",
+    "joblib": "1.5.3"
+  }
+}

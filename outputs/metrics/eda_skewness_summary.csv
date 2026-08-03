@@ -1,0 +1,9 @@
+Feature,Skewness,Absolute Skewness,Interpretation
+Wall_Area,0.5284963874887967,0.5284963874887967,Moderately skewed
+Relative_Compactness,0.5132180126868178,0.5132180126868178,Moderately skewed
+Heating_Load,0.3987066079866025,0.3987066079866025,Approximately symmetric
+Roof_Area,-0.1948304072600085,0.1948304072600085,Approximately symmetric
+Glazing_Area_Distribution,-0.08092323558841176,0.08092323558841176,Approximately symmetric
+Glazing_Area,-0.07934521334950383,0.07934521334950383,Approximately symmetric
+Overall_Height,0.03265744711235715,0.03265744711235715,Approximately symmetric
+Orientation,-0.007230046867516989,0.007230046867516989,Approximately symmetric

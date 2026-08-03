@@ -1,0 +1,8 @@
+Feature,Unique Values,Possible Type
+Overall_Height,2,Discrete / categorical-like
+Roof_Area,4,Discrete / categorical-like
+Orientation,4,Discrete / categorical-like
+Glazing_Area,4,Discrete / categorical-like
+Glazing_Area_Distribution,6,Discrete / categorical-like
+Wall_Area,7,Discrete / categorical-like
+Relative_Compactness,12,Continuous

@@ -1,419 +1,522 @@
 # Energy Efficiency Prediction
 
-An end-to-end Machine Learning regression project that predicts the **Heating Load (kWh/m²)** of residential buildings using their architectural characteristics. The project covers the complete machine learning workflow including data preprocessing, feature engineering, exploratory data analysis (EDA), model comparison, evaluation, explainability, deployment, and an interactive Streamlit web application.
+A complete machine-learning regression project that predicts the **Heating Load** of residential buildings from architectural characteristics.
 
----
+The project includes leakage-safe preprocessing, limited feature engineering, exploratory data analysis, comparison of 12 regression algorithms, held-out test evaluation, cross-validation, SHAP explainability, learning curves, residual analysis, MySQL authentication and prediction history, batch prediction, PDF reports and a Streamlit application.
 
-# Problem Statement
+## Business problem
 
-Designing energy-efficient buildings requires accurately estimating heating demand during the planning stage. Manual estimation is time-consuming and expensive.
+Building design decisions affect future heating-energy demand. Estimating heating load before construction can help designers compare alternatives and make more energy-efficient decisions.
 
-This project builds a complete regression pipeline that:
+## Project objective
 
-* Cleans and preprocesses building data
-* Engineers meaningful features
-* Removes multicollinearity (Surface Area removed from production pipeline)
-* Trains and compares **12 regression algorithms**
-* Evaluates models using multiple regression metrics
-* Selects the best model using evidence rather than R² alone
-* Deploys the final model with an interactive Streamlit application
+Predict the continuous target variable `Heating_Load` using seven building-design inputs.
 
-**Target Variable**
+This is a **regression problem** because the target is a continuous numerical value.
 
-Heating Load (Y1)
+## Dataset
 
----
+The project uses the UCI Energy Efficiency dataset stored locally as:
 
-# Dataset
+```text
+data/energy_efficiency_data.csv
+```
 
-Dataset Source
+Expected dataset size:
 
-UCI Machine Learning Repository
+- 768 rows
+- 10 columns
+- 7 production input features
+- 2 target columns
+- `Surface_Area` retained in the source dataset for EDA only
 
-**Energy Efficiency Dataset**
+Production target:
 
-[https://archive.ics.uci.edu/ml/datasets/Energy+efficiency](https://archive.ics.uci.edu/ml/datasets/Energy+efficiency)
+```text
+Heating_Load
+```
 
-| Feature                   | Description                                                           |
-| ------------------------- | --------------------------------------------------------------------- |
-| Relative_Compactness      | Overall compactness of the building                                   |
-| Surface_Area              | Total surface area (removed from production due to multicollinearity) |
-| Wall_Area                 | Exterior wall area                                                    |
-| Roof_Area                 | Roof area                                                             |
-| Overall_Height            | Building height                                                       |
-| Orientation               | Building orientation                                                  |
-| Glazing_Area              | Window/glazing ratio                                                  |
-| Glazing_Area_Distribution | Distribution of glazing                                               |
-| Heating_Load              | Target variable                                                       |
+Raw input features:
 
-**Dataset Summary**
+1. `Relative_Compactness`
+2. `Wall_Area`
+3. `Roof_Area`
+4. `Overall_Height`
+5. `Orientation`
+6. `Glazing_Area`
+7. `Glazing_Area_Distribution`
 
-* Rows: **768**
-* Original Features: **8**
-* Production Features: **7**
-* Missing Values: **None**
-* Duplicate Records: **None**
-* Target: **Heating Load**
+The project predicts `Heating_Load`. `Cooling_Load` is not used as an input.
 
----
+## Leakage-safe workflow
 
-# Installation
+```text
+Dataset
+  ↓
+Data validation
+  ↓
+Train/test split
+  ↓
+Feature engineering applied separately
+  ↓
+Model-specific preprocessing fitted on training data only
+  ↓
+Train and compare 12 regression models
+  ↓
+Evaluate on held-out unseen test data
+  ↓
+Cross-validation and learning curve
+  ↓
+Save the selected production model
+  ↓
+Generate reports and visualisations
+  ↓
+Serve predictions through Streamlit
+```
 
-## Requirements
+The train/test split occurs before learned preprocessing. Scaling, encoding and imputation are fitted only on training data or training folds.
 
-* Python 3.12+
-* pip
+## Feature engineering
 
----
+One concise engineered feature is used:
 
-## Setup
+| Engineered feature | Meaning |
+|---|---|
+| `Compactness_Height` | Relative compactness multiplied by overall height |
+
+Final model input:
+
+```text
+7 raw features + 1 engineered feature = 8 features
+```
+
+`Surface_Area` is excluded from model training because of multicollinearity,
+but remains in the raw dataset for EDA and traceability.
+
+Keeping feature engineering limited reduces unnecessary complexity and helps control overfitting.
+
+## Preprocessing
+
+The preprocessing system:
+
+- splits raw data before learned transformations;
+- applies feature engineering separately to training and test data;
+- one-hot encodes `Orientation` and `Glazing_Area_Distribution`;
+- scales numerical features for linear and distance-based models;
+- leaves numerical features unscaled for tree-based models;
+- uses `handle_unknown="ignore"` for unseen categorical values;
+- fits all preprocessors on training data only.
+
+## Regression algorithms
+
+The training pipeline compares:
+
+1. Linear Regression
+2. Ridge Regression
+3. Lasso Regression
+4. Decision Tree Regressor
+5. Random Forest Regressor
+6. Gradient Boosting Regressor
+7. Support Vector Regressor
+8. XGBoost
+9. Extra Trees Regressor
+10. AdaBoost Regressor
+11. CatBoost
+12. LightGBM
+
+## Evaluation metrics
+
+Every model is compared using:
+
+| Metric | Meaning | Better value |
+|---|---|---|
+| MAE | Average absolute prediction error | Lower |
+| MSE | Average squared prediction error | Lower |
+| RMSE | Error in the target's original scale, with larger errors penalised more | Lower |
+| R² | Proportion of target variation explained by the model | Higher |
+| CV R² mean | Average R² across cross-validation folds | Higher |
+| CV R² standard deviation | Variation across folds | Lower |
+| Train-test R² gap | Difference between training and held-out performance | Closer to zero |
+| Training time | Time required to fit the model | Lower, when accuracy is similar |
+
+The production model is selected using a balanced deployment score:
+
+1. held-out Test R²;
+2. RMSE and MAE;
+3. cross-validation R²;
+4. cross-validation variability;
+5. train-test R² gap.
+
+This prevents selection from relying on R² alone.
+
+The actual winner is determined every time `python -m src.train` is run. Do not hardcode CatBoost, LightGBM or another model as the winner.
+
+## Unseen-data evaluation
+
+After training, `src.evaluate` evaluates the selected model using the held-out test partition that was not used to fit the model.
+
+Important outputs:
+
+```text
+models/evaluation_metrics.json
+outputs/metrics/unseen_test_predictions.csv
+outputs/metrics/learning_curve.csv
+```
+
+`unseen_test_predictions.csv` contains:
+
+- actual value;
+- predicted value;
+- residual;
+- absolute error;
+- squared error.
+
+The Streamlit Model Information and Model Insights pages read these latest files automatically.
+
+## Exploratory data analysis
+
+The project includes:
+
+- histograms;
+- boxplots;
+- scatter plots;
+- correlation heatmap;
+- distribution plots;
+- skewness analysis;
+- outlier summaries;
+- target correlations;
+- feature relationships.
+
+EDA results and generated figures are stored under:
+
+```text
+outputs/metrics/
+outputs/figures/
+```
+
+## Streamlit application
+
+Pages:
+
+- Home
+- Project Description
+- Dataset Information
+- Model Information
+- Prediction
+- Model Insights
+- Batch Prediction
+- Prediction History
+- Model Comparison
+- Team Members
+
+Features:
+
+- single prediction;
+- prediction result and explanation;
+- batch CSV prediction;
+- SHAP local explanation;
+- global feature importance;
+- unseen-data residual analysis;
+- actual-versus-predicted chart;
+- learning curve;
+- downloadable PDF prediction report;
+- MySQL authentication;
+- MySQL prediction history;
+- light and dark themes.
+
+The UI remains unchanged when the model is retrained. Content and visualisations are loaded from the latest saved artefacts.
+
+## MySQL configuration
+
+Create:
+
+```text
+.streamlit/secrets.toml
+```
+
+Add:
+
+```toml
+[mysql]
+host = "localhost"
+port = 3306
+database = "energy_efficiency"
+user = "root"
+password = "YOUR_MYSQL_PASSWORD"
+```
+
+Create the database once:
+
+```sql
+CREATE DATABASE energy_efficiency
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+```
+
+The application creates the `users` and `predictions` tables automatically.
+
+Do not commit or publicly share your real database password.
+
+## Project structure
+
+```text
+energy-efficiency-prediction/
+├── .streamlit/
+│   └── secrets.toml
+├── app/
+│   └── app.py
+├── assets/
+│   └── team/
+├── data/
+│   └── energy_efficiency_data.csv
+├── models/
+│   ├── best_model.pkl
+│   ├── evaluation_metrics.json
+│   ├── feature_info.json
+│   └── model_metadata.json
+├── notebooks/
+│   ├── eda.ipynb
+│   └── model_comparison.ipynb
+├── outputs/
+│   ├── figures/
+│   ├── metrics/
+│   └── reports/
+├── src/
+│   ├── __init__.py
+│   ├── auth.py
+│   ├── database.py
+│   ├── evaluate.py
+│   ├── feature_engineering.py
+│   ├── predict.py
+│   ├── preprocessing.py
+│   ├── report_generator.py
+│   ├── train.py
+│   ├── utils.py
+│   └── visualization.py
+├── tests/
+│   ├── __init__.py
+│   └── test_preprocessing.py
+├── requirements.txt
+└── README.md
+```
+
+## Generated artefacts
+
+Training generates or overwrites:
+
+```text
+models/best_model.pkl
+models/feature_info.json
+models/model_metadata.json
+outputs/metrics/model_comparison.csv
+outputs/metrics/deployment_ranking.csv
+```
+
+Evaluation generates or overwrites:
+
+```text
+models/evaluation_metrics.json
+outputs/metrics/unseen_test_predictions.csv
+outputs/metrics/learning_curve.csv
+outputs/figures/learning_curve.png
+outputs/figures/shap_summary.png
+outputs/figures/shap_bar.png
+```
+
+Additional residual and actual-versus-predicted figures are also written to `outputs/figures/`.
+
+Report generation creates:
+
+```text
+outputs/reports/data_understanding.md
+outputs/reports/eda_summary.md
+outputs/reports/feature_engineering.md
+outputs/reports/model_comparison.md
+outputs/reports/model_evaluation.md
+outputs/reports/deployment_summary.md
+outputs/reports/final_project_report.md
+```
+
+## Installation
+
+From the project root:
 
 ```bash
-git clone https://github.com/Michaelsaron/energy-efficiency-prediction.git
-
-cd energy-efficiency-prediction
-
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
----
+The requirements must include at least:
 
-# Usage
-
-## 1. Train Models
-
-Runs:
-
-* preprocessing
-* feature engineering
-* model training
-* model comparison
-* model selection
-* saves best model
-* saves metadata
-
-```bash
-python -m src.train
+```text
+pandas
+numpy
+scikit-learn
+joblib
+matplotlib
+plotly
+streamlit
+shap
+reportlab
+bcrypt
+mysql-connector-python
+xgboost
+lightgbm
+catboost
+pytest
 ```
 
----
+## Run the project
 
-## 2. Evaluate Best Model
+Run commands from the main project folder.
 
-Generates
-
-* evaluation metrics
-* feature importance
-* residual analysis
-* learning curves
-* deployment ranking
-
-```bash
-python -m src.evaluate
-```
-
----
-
-## 3. Make Prediction (CLI)
-
-```bash
-python -m src.predict
-```
-
-Example
-
-```python
-sample = {
-    "Relative_Compactness": 0.82,
-    "Wall_Area": 294,
-    "Roof_Area": 110.25,
-    "Overall_Height": 7,
-    "Orientation": 2,
-    "Glazing_Area": 0.25,
-    "Glazing_Area_Distribution": 3,
-}
-
-prediction = predict_heating_load(sample)
-
-print(prediction)
-```
-
----
-
-## 4. Generate Technical Report
-
-```bash
-python -m src.report_generator
-```
-
----
-
-## 5. Launch Streamlit
-
-```bash
-streamlit run app/app.py
-```
-
----
-
-## 6. Run Tests
+### 1. Run tests
 
 ```bash
 python -m pytest tests -v
 ```
 
----
-
-## 7. Open Notebooks
+### 2. Train and compare models
 
 ```bash
-jupyter notebook notebooks/
+python -m src.train
 ```
 
----
+### 3. Evaluate the selected model on unseen data
 
-# Project Structure
-
-```text
-energy-efficiency-prediction/
-
-├── app/
-│   └── app.py
-│
-├── assets/
-│   └── team/
-│
-├── data/
-│   └── energy_efficiency_data.csv
-│
-├── models/
-│   ├── best_model.pkl
-│   ├── feature_info.json
-│   ├── evaluation_metrics.json
-│   └── model_metadata.json
-│
-├── notebooks/
-│   ├── eda.ipynb
-│   └── model_comparison.ipynb
-│
-├── outputs/
-│   ├── figures/
-│   ├── metrics/
-│   └── reports/
-│
-├── src/
-│   ├── preprocessing.py
-│   ├── feature_engineering.py
-│   ├── train.py
-│   ├── evaluate.py
-│   ├── predict.py
-│   ├── report_generator.py
-│   ├── visualization.py
-│   ├── database.py
-│   ├── utils.py
-│   └── auth.py
-│
-├── tests/
-│   └── test_preprocessing.py
-│
-├── requirements.txt
-├── README.md
-└── .gitignore
+```bash
+python -m src.evaluate
 ```
 
----
+### 4. Generate technical reports
 
-# Models Compared
+```bash
+python -m src.report_generator
+```
 
-The project compares **12 regression algorithms**.
+### 5. Start Streamlit
 
-| Algorithm                      |
-| ------------------------------ |
-| Linear Regression              |
-| Ridge Regression               |
-| Lasso Regression               |
-| Decision Tree Regressor        |
-| Random Forest Regressor        |
-| Gradient Boosting Regressor    |
-| Support Vector Regressor (SVR) |
-| XGBoost                        |
-| Extra Trees Regressor          |
-| AdaBoost Regressor             |
-| CatBoost                       |
-| LightGBM                       |
+```bash
+streamlit run app/app.py
+```
 
----
+Complete order:
 
-# Model Evaluation
+```bash
+python -m pytest tests -v
+python -m src.train
+python -m src.evaluate
+python -m src.report_generator
+streamlit run app/app.py
+```
 
-Models are evaluated using
+## When to rerun commands
 
-* Mean Absolute Error (MAE)
-* Mean Squared Error (MSE)
-* Root Mean Squared Error (RMSE)
-* R² Score
-* Training Time
-* Train-Test Gap
-* Cross Validation Score
+After changing preprocessing, feature engineering or model settings:
 
-The final model is selected using a **weighted deployment ranking**, considering:
+```bash
+python -m pytest tests -v
+python -m src.train
+python -m src.evaluate
+python -m src.report_generator
+```
 
-* RMSE
-* MAE
-* R²
-* Training Time
-* Generalization Ability (Train-Test Gap)
+After changing only the Streamlit UI:
 
-rather than relying only on the highest R² score.
+```bash
+streamlit run app/app.py
+```
 
----
+After retraining while Streamlit is running, refresh the browser. The app reads the latest model metadata and metric files.
 
-# Feature Engineering
+## Tests
 
-The project creates production-ready features including:
+`tests/test_preprocessing.py` checks:
 
-* Compactness × Height Interaction
-* Relative Compactness
-* Feature Validation
-* Production Feature Ordering
-
-To reduce multicollinearity,
-
-**Surface_Area** was intentionally removed from the production pipeline because it was highly correlated with Roof Area and Wall Area.
-
----
-
-# Key Findings
-
-* Relative Compactness is the strongest predictor of Heating Load.
-* Overall Height significantly affects heating demand.
-* Compactness and Height interaction improves prediction accuracy.
-* Surface Area introduced multicollinearity and was removed from production.
-* Ensemble models consistently outperformed simple linear models.
-* Cross-validation confirmed good model generalization.
-
----
-
-# Outputs Generated
-
-## Figures
-
-* Heating Load Distribution
-* Feature Distributions
-* Correlation Heatmap
-* Feature Relationships
-* Pair Plot
-* Feature Importance
-* SHAP Summary Plot
-* SHAP Bar Plot
-* Residual Analysis
-* QQ Plot
-* Learning Curve
-* Actual vs Predicted Plot
-
----
-
-## Metrics
-
-* Model Comparison
-* Deployment Ranking
-* Feature Importance
-* Cross Validation Scores
-* Target Correlations
-* Outlier Summary
-* Prediction History
-
----
+- the correct seven raw features;
+- the `Compactness_Height` engineered feature;
+- the total of 8 model features;
+- safe division and feature values;
+- no mutation of the original input;
+- disjoint training and test indices;
+- deterministic splitting;
+- fitted tree and linear preprocessors;
+- finite transformed values;
+- clear errors for missing features;
+- protection against using processed data before fitting.
 
 ## Reports
 
-* Technical Markdown Report
+Generate the complete Markdown technical report set with:
 
----
+```bash
+python -m src.report_generator
+```
 
-# Streamlit Application
+The final report covers:
 
-The web application includes
+1. Introduction
+2. Business problem
+3. Dataset description
+4. Data preprocessing
+5. Exploratory data analysis
+6. Regression algorithms
+7. Model evaluation
+8. Model comparison
+9. Best-model selection
+10. Web application
+11. Conclusion
+12. Future improvements
 
-* Home
-* Project Description
-* Dataset Information
-* Model Information
-* Single Prediction
-* Batch Prediction
-* Prediction History
-* Model Insights
-* Model Comparison
-* Team Members
+## Technologies
 
----
+- Python
+- Pandas
+- NumPy
+- Scikit-learn
+- XGBoost
+- LightGBM
+- CatBoost
+- SHAP
+- Matplotlib
+- Plotly
+- Streamlit
+- MySQL
+- mysql-connector-python
+- bcrypt
+- ReportLab
+- Joblib
+- Pytest
 
-# Bonus Features
+## Team
 
-- SHAP Explainability
+**Group 7 — Energy Efficiency Prediction Project**
 
--  Feature Importance Analysis
+## Important security note
 
--  Learning Curves
+The MySQL password is stored in `.streamlit/secrets.toml`. Keep that file private and do not upload it to public repositories.
 
--  Residual Analysis
+## Licence
 
--  Prediction History Database
+This project was developed for educational and research purposes.
 
--  User Authentication
 
--  Batch Prediction
+## Checklist coverage
 
--  Cross Validation
+The project satisfies the required regression-project checklist:
 
--  Deployment Ranking
+- clear problem, target and dataset documentation;
+- reusable preprocessing and fixed train/test split;
+- 12 model comparison with model-specific scaling;
+- held-out MAE, RMSE, R² and training time;
+- balanced best-model selection;
+- saved model and metadata;
+- labelled EDA and model-comparison figures;
+- SHAP and feature-importance analysis;
+- clean project structure, tests and reproducible run instructions;
+- Streamlit prediction demo and MySQL prediction history.
 
--  Technical Report Generator
+The checklist-aligned written report is generated at:
 
----
-
-# Tech Stack
-
-* Python 3.12
-* Pandas
-* NumPy
-* Scikit-Learn
-* XGBoost
-* CatBoost
-* LightGBM
-* Matplotlib
-* Seaborn
-* SHAP
-* Joblib
-* SQLite
-* Streamlit
-
----
-
-# Future Improvements
-
-* Cloud deployment
-* REST API integration
-* Automated hyperparameter tuning
-* Real-time energy prediction service
-* Integration with BIM (Building Information Modeling)
-
----
-
-# Authors
-
-**Group 7**
-
-Machine Learning Regression Project
-
-Energy Efficiency Prediction
-
----
-
-# License
-
-**All Rights Reserved**
-
-Copyright © 2026 Michael Saron.
-
-This project is provided for academic purposes only. No part of this repository may be copied, modified, distributed, or used without prior written permission from the author.
+```text
+outputs/reports/technical_report_checklist.md
+```

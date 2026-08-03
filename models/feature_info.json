@@ -1,0 +1,28 @@
+{
+  "raw_feature_names": [
+    "Relative_Compactness",
+    "Wall_Area",
+    "Roof_Area",
+    "Overall_Height",
+    "Orientation",
+    "Glazing_Area",
+    "Glazing_Area_Distribution"
+  ],
+  "feature_names": [
+    "Relative_Compactness",
+    "Wall_Area",
+    "Roof_Area",
+    "Overall_Height",
+    "Orientation",
+    "Glazing_Area",
+    "Glazing_Area_Distribution",
+    "Compactness_Height"
+  ],
+  "n_raw_features": 7,
+  "n_features": 8,
+  "train_samples": 614,
+  "test_samples": 154,
+  "target": "Heating_Load",
+  "feature_engineering": true,
+  "preprocessing_saved_inside_model": true
+}
