@@ -500,22 +500,7 @@ The MySQL password is stored in `.streamlit/secrets.toml`. Keep that file privat
 This project was developed for educational and research purposes.
 
 
-## Checklist coverage
 
-The project satisfies the required regression-project checklist:
-
-- clear problem, target and dataset documentation;
-- reusable preprocessing and fixed train/test split;
-- 12 model comparison with model-specific scaling;
-- held-out MAE, RMSE, R² and training time;
-- balanced best-model selection;
-- saved model and metadata;
-- labelled EDA and model-comparison figures;
-- SHAP and feature-importance analysis;
-- clean project structure, tests and reproducible run instructions;
-- Streamlit prediction demo and MySQL prediction history.
-
-The checklist-aligned written report is generated at:
 
 ```text
 outputs/reports/technical_report_checklist.md
