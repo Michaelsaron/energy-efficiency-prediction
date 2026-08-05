@@ -491,13 +491,6 @@ The final report covers:
 
 **Group 7 — Energy Efficiency Prediction Project**
 
-## Important security note
-
-The MySQL password is stored in `.streamlit/secrets.toml`. Keep that file private and do not upload it to public repositories.
-
-## Licence
-
-This project was developed for educational and research purposes.
 
 
 
